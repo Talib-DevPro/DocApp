@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const User = require('../models/userModel')
+const Doctor = require('../models/doctorModel')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const middleware = require('../middlewares/middleware')
@@ -66,6 +67,32 @@ router.post('/getUserById', middleware, async (req, res) => {
         }
     } catch (error) {
         res.status(500).send({ message: 'Auth failed', success: false });
+    }
+})
+
+router.post('/apply-doctor-account', middleware, async (req, res) => {
+    try {
+        const newDoctor = new Doctor({ ...req.body, status: 'pending' })
+        await Doctor.save()
+
+        const adminUser = await User.findOne({ isAdmin: true })
+
+        const unseenNotifications = newDoctor.unseenNotifications
+        unseenNotifications.push({
+            type: 'new-doctor-request',
+            message: `${newDoctor.firstName} ${newDoctor.lastName} has applied for doctor account`,
+            data: {
+                doctorId: newDoctor._id,
+                name: newDoctor.firstName + " " + newDoctor.lastName
+            },
+            onClickPath: '/admin/doctors'
+
+        })
+        await User.findOneAndUpdate(adminUser._id, { unseenNotifications })
+        res.status(200).send({ message: 'User created successfully', success: true })
+
+    } catch (error) {
+        res.status(500).send({ message: 'something went wrong', success: false, error })
     }
 })
 
